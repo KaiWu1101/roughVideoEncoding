@@ -1,0 +1,55 @@
+in c++ ¡°set" is a container class, "find" and "insert" are its member function.
+for "insert", you need to write a comparision function to reload operator "<" which means
+the elements you saved or insert in set will be ascending order. the member data you write 
+to compare will be the condition that will decide which element "find" is looking for.
+
+for example:
+
+class student
+{
+public:
+	student(int age1, string name1,int number){ age = age1; name = name1; stuNum = number; }
+	int age;
+	string name;
+	int stuNum;
+	
+	//age and name will be used for comparision, stuNum will not be used.
+	friend bool operator < (student s1, student s2)
+	{
+		if (s1.age < s2.age)
+			return true;
+		if (s1.age>s2.age)
+			return false;
+		if (s1.name < s2.name)
+			return true;
+		if (s1.name>s2.name)
+			return false;
+		return false;
+	}
+};
+
+int main()
+{
+	//the elements in set will be student objects.
+	set<student> stuSet; 
+	set<student>::iterator itr;
+	student s1(1, "paul",100);
+	student s2(2, "mary",101);
+	student s3(1, "paul",102);
+	
+	//two students are inserted into set and will be ordered.
+	stuSet.insert(s1); 
+	stuSet.insert(s2);
+	
+	//s3 is different from s1 but their age and name are the same so the 
+	//find result will be s1.
+	itr = stuSet.find(s3);
+	
+	if (itr == stuSet.end())
+	{
+		cout << "element is not in this set" << endl;
+	}
+	else
+		//s1 will be printed
+		cout << itr->age << "  " << itr->name << endl;
+}
