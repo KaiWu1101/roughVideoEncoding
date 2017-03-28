@@ -57,7 +57,7 @@ char huffTreeTraverse_4(int huffCode[],int N)
 	return loc;
 }
 
-void build_htable(set<RunHuff> &htable)
+void Hcodec::build_htable()
 {
 	//N is the number of precalculated run-level Huffman codeword;
 	int i, j, k, N = 10;
@@ -99,7 +99,7 @@ void build_htable(set<RunHuff> &htable)
 	}
 }
 
-void huff_encode(set<RunHuff> &htable, RUN3D runs[], BitFileIO &outputs)
+void Hcodec::huff_encode(RUN3D runs[], BitFileIO* outputs)
 {
 	short i, j, k;
 	k = 0;
@@ -111,7 +111,7 @@ void huff_encode(set<RunHuff> &htable, RUN3D runs[], BitFileIO &outputs)
 		RunHuff rf(runs[k], 0, 0, 0);
 
 		if (itr == htable.find(rf) && itr != htable.end())
-			outputs.outputBits(itr->codeword, itr->hlen + 1);
+			outputs->outputBits(itr->codeword, itr->hlen + 1);
 		else
 			escape_encode(outputs, rf.r);
 
@@ -121,60 +121,86 @@ void huff_encode(set<RunHuff> &htable, RUN3D runs[], BitFileIO &outputs)
 	}
 }
 
-void escape_encode(BitFileIO &outputs, RUN3D &r)
+void Hcodec::escape_encode(BitFileIO *outputs, RUN3D &r)
 {
-	if (r.level < 0)
-	{
-		outputs.outputBit(1);
-		r.level = -r.level;
+	if (r.level < 0) {                  //value of level negative
+		outputs->outputBit(1);            //output sign-bit first
+		r.level = -r.level;                 //change level value to positive 
 	}
 	else
-	{
-		outputs.outputBit(0);
-	}
-	outputs.outputBits(0x60, 7);
-	if (r.run == 64)
-	{
-		r.run = 63;  //check RLE.cpp,  63 zeros plus 1 level(0)=64 elements
-	}
-	outputs.outputBits(r.run, 6);
-	outputs.outputBits(r.level, 8);
-	outputs.outputBits(r.last,1);
+		outputs->outputBit(0);            //value of level negative
+	outputs->outputBits(ESC_HUF_CODE, 7);  //ESCAPE code
+	if (r.run == 64) r.run = 63;        //r.level differentiates between if last element nonzero 
+	outputs->outputBits(r.run, 6);      //6 bits for run value
+	outputs->outputBits(r.level, 8);    //8 bits for level value
+	outputs->outputBit(r.last);         //1 bit for last value
 }
 
-void build_huff_tree(set<RunHuff> &htable, Dtables &d)
+void Hcodec::huff_encode_EOS(BitFileIO *outputs)
+{
+	RUN3D r;                       //a 3D run-level codeword ( tuple )
+	set<RunHuff>::iterator itr;     //iterator to traverse htable
+	r.last = 0;
+	r.level = 1;
+	r.run = EOS;
+	//construct a RunHuff object; only run3D r is relevant as it is
+	//  used for searching (we've defined '<' in RunHuff class)
+	RunHuff rf(r, 0, (unsigned char)0, (short)0);
+	if ((itr = htable.find(rf)) != htable.end())   //found
+		outputs->outputBits(itr->codeword, itr->hlen + 1);
+	else
+		printf("\nError: EOS not in Huffman table!\n");
+
+	return;
+}
+
+void Hcodec::build_huff_tree(Dtables &d)
 {
 	set<RunHuff>::iterator itr;
 	short i, j, n0, free_slot, loc, loc0, root, ntotal;
 	unsigned int mask, hcode;
+	//128 positive+ 128 positive symbols
+	int NSymbols = 256; 
 	n0 = NSymbols;
 	ntotal = 2 * n0 - 1;
 	root = 3 * n0 - 3; //=2*(n0-1)+n0 , because it starts from 0, so =3*n0-3;
-	free_slot = root - 2; 
+	free_slot = root - 2;
 
 	//initialize the table, all entries empty
-	for (i = 0; i < ntotal;i++)
+	for (i = 0; i <= root;i++)
 		d.huf_tree[i] = -1;
 	
-	for (itr = htable.begin(); itr != htable.end; ++itr)
+	for (itr = htable.begin(); itr != htable.end(); ++itr)
 	{
 		if (itr->r.level < 0) continue;
 		d.run_table[itr->index / 2] = itr->r;
 		loc = root;
-		mask = 0x01;
-		hcode = itr->codeword >> 1;
+		int mask = 0x0001;
+		hcode = itr->codeword >> 1; 
 		for (i = 0; i < itr->hlen; ++i)
 		{
-			loc0 = loc - n0;
+			loc0 = loc;
 			if (i == (itr->hlen - 1))
 			{
 				if ((mask&hcode) == 0)
+				{
 					d.huf_tree[loc0] = itr->index / 2;
+					if (d.huf_tree[loc0] == 3)
+					{
+						cout << "here";
+					}
+				}
 				else
+				{
 					d.huf_tree[loc0 - 1] = itr->index / 2;
+					if (d.huf_tree[loc0-1] == 3)
+					{
+						cout << "here";
+					}
+				}
 				continue;
 			}
-			if (mask&hcode == 0)
+			if ((mask&hcode) == 0)
 			{
 				if (d.huf_tree[loc0] == -1)
 				{
@@ -192,10 +218,52 @@ void build_huff_tree(set<RunHuff> &htable, Dtables &d)
 				}
 				loc = d.huf_tree[loc0 - 1];
 			}
-			mask << 1;
+			mask=mask << 1;
 		}
 
 	}
-
-
 }
+
+short Hcodec::huff_decode(BitFileIO *inputs, Dtables &d, RUN3D runs[])
+{
+	short n0, loc, loc0, root, k;
+	char c, sign;
+	bool done = false;
+	RUN3D r;
+
+	n0 = NSymbols;                        //number of symbols
+	root = 3 * n0 - 3;                    //points to root of tree
+	k = 0;
+	while (!done) {
+		loc = root;                         //starts from root
+		sign = inputs->inputBit();               //sign-bit
+		do {
+			loc0 = loc - n0;
+			c = inputs->inputBit();                //read one bit
+			if (c < 0) { done = true; break; }  //no more data, done    
+			if (c == 0)                     //a 0, go left
+				loc = d.huf_tree[loc0];
+			else                              //a 1, go right
+				loc = d.huf_tree[loc0 - 1];
+		} while (loc >= n0);              //traverse until reaches leaf
+		r = d.run_table[loc];
+		if (r.run == ESC) {               //ESCAPE code, read actual run-level tuple
+			r.run = inputs->inputBits(6);    //read 6 bits for run
+			r.level = inputs->inputBits(8);  //read 8 bits for level
+			r.last = inputs->inputBit();         //read 1 bit for last
+			if (sign)                     //if sign is 1, level should be negative
+				r.level = -r.level;
+		}
+		else {                            //not ESCAPE code 
+			if (sign)                       //1 => negative
+				r.level = -r.level;
+		}
+		if ((r.run == 63) && (r.level == 0)) r.run = 64;  //whole block 0
+		runs[k++] = r;                      //save tuple in table runs[]
+		if (r.last)                       //end of macroblock 
+			break;
+	}  //while
+	if (done) return -1;                //if ( done ) => no more data
+	else return 1;
+}
+
