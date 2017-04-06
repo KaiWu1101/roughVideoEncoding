@@ -47,8 +47,28 @@ public:
 	RUN3D run_table[512];
 };
 
-void build_huff_tree(set<RunHuff> &htable, Dtables &d);
-void build_htable(set<RunHuff> &htable);
-void huff_encode(set<RunHuff> &htable, RUN3D runs[], BitFileIO &outputs);
-void escape_encode(BitFileIO &outputs, RUN3D &r);
+class Hcodec
+{
+private:
+	const static int NSymbols = 256;   //maximum symbols allowed
+	const static short ESC = 127;      //Escape run
+	const static short ESC_HUF_CODE = 0x60;  //Escape code
+	const static short EOS = 126;      //End of Stream 'symbol' ( run )
+	const static short EOS_HUF_CODE = 0x0a;  //End of Stream 'symbol'
+	bool tableNotBuilt;
+
+public:
+	set<RunHuff> htable;  //table to hold pre-calculated run-level and Huffman codewords
+	//default constructor
+	Hcodec();
+	//use a set ( htable ) to collect all pre-calculated run-level and Huffman codewords
+	void build_htable();
+	void escape_encode(BitFileIO *outputs, RUN3D &r);
+	void huff_encode(RUN3D runs[], BitFileIO *outputs);
+	//Encode End of Stream symbol
+	void huff_encode_EOS(BitFileIO *outputs);
+	void build_huff_tree(Dtables &d);
+	short huff_decode(BitFileIO *inputs, Dtables &d, RUN3D runs[]);
+};
+
 #endif

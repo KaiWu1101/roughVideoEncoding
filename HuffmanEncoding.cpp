@@ -60,22 +60,22 @@ char huffTreeTraverse_4(int huffCode[],int N)
 void Hcodec::build_htable()
 {
 	//N is the number of precalculated run-level Huffman codeword;
-	int i, j, k, N = 10;
+	int i, j, k, N = 11;
 
 	//length of Huffman codewords (not include sigh bit)
-	char len[] = { 2, 3, 4, 4, 4, 5, 5, 5, 6, 7 };
+	char len[] = { 2, 3, 4, 4, 4, 5, 5, 5, 6, 6, 7 };
 
 	//huffman codeword, 0x60 is the escape code
-	unsigned short hcode[] = { 0x01, 0x3, 0x7, 0xf, 0xe, 0x16, 0x6, 0x1a, 0x2a, 0x60 };
+	unsigned short hcode[] = { 0x01, 0x3, 0x7, 0xf, 0xe, 0x16, 0x6, 0x1a, 0x2a, EOS_HUF_CODE,ESC_HUF_CODE };
 
 	//value of runs in run-level, 255 signifies escape code (ESC)
-	unsigned char runs[] = { 0, 1, 2, 0, 0, 3, 4, 5, 0, 255 };
+	unsigned char runs[] = { 0, 1, 2, 0, 0, 3, 4, 5, 0, EOS,ESC };
 
 	//value of levels in run-level,
-	short levels[] = { 1, 1, 1, 2, 1, 1, 1, 1, 3, 0 };
+	short levels[] = { 1, 1, 1, 2, 1, 1, 1, 1, 3, 1,1 };
 
 	//vaules of lasts
-	unsigned char lasts[] = { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 };
+	unsigned char lasts[] = { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,0 };
 
 	RUN3D r;
 
