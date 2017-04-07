@@ -6,7 +6,7 @@ class quantizer
 private:
 	short Qstep;
 public:
-	quantizer(short Qstep=1);
+	quantizer(short Qstep);
 	void quantization(short* inputImg, int imgSize);
 	void reverse_quantization(short* inputImg, int imgSize);
 };

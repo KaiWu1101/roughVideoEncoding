@@ -8,6 +8,7 @@ void DCT(short* srcImg,int imgSize, int N)
 		for (int j = 0; j < imgSize; j = j + N)
 		{
 			DCT_macroblock(srcImg + i*imgSize * 3 + j * 3 + 0, imgSize);
+			//print_DCT(srcImg + i*imgSize * 3 + j * 3 + 0, imgSize);
 		}
 	}
 }
@@ -123,4 +124,14 @@ void IDCT_macroblock(short* blockP,int imgSize)
 		}
 	}
 
+}
+
+void print_DCT(short* blockP, int imgSize)
+{
+	for (int i = 0; i < 8; ++i) {
+		cout << endl;
+		for (int j = 0; j < 8; ++j) {
+			cout << *(blockP + i*imgSize * 3 + j * 3 + 0) << "\t";
+		}
+	}
 }
